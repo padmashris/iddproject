@@ -1,3 +1,4 @@
+# load libraries 
 library(tidyverse)
 library(lubridate)
 library(incidence)
@@ -13,12 +14,13 @@ library(mvtnorm)
 library(viridis)
 options(digits=3)
 library(ggplot2)
-
 library(EpiEstim)
 library(R0)
 library(reshape2)
 
+# set working directory
 setwd("~/Desktop/IDD/Project_COVID")
+
 # Load the data
 data <- read_csv("~/Desktop/IDD/Project_COVID/singapore_cleaned.csv")
 
