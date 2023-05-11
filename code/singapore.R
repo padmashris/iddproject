@@ -28,7 +28,7 @@ data <- read_csv("~/Desktop/IDD/Project_COVID/singapore_cleaned.csv")
 data$date_confirmation <- as.Date(data$date_confirmation, format = "%Y.%m.%d")
 data$date_onset_symptoms <- as.Date(data$date_onset_symptoms, format = "%Y-%m-%d")
 
-#### first method ####
+#### first method - final size of epidemic (Lessler 2009) ####
 
 # Calculate daily counts
 daily_counts <- data %>%
@@ -45,7 +45,7 @@ for(i in (N-C+1):(N-1)){
 
 R01 <- ((N-1)/C)*total_i
 
-#### second method ####
+#### second method - exponential growth rate (Lessler 2009) ####
 
 # Calculate the exponential growth rate
 growth_rate <- lm(log(count) ~ decimal_date(date), data = daily_counts)$coefficients[2]
@@ -155,32 +155,19 @@ R <- (1 + r*mu*(nu^2))^(1/(nu^2))
 
 cat("Estimated R0: ",R)
 
-# third method
+#### third method - maximum likelihood branching process estimator (White and Pagano 2021) ####
 
+
+# creating a column to specify the number of days that has passed
 daily_counts <- daily_counts %>% mutate(day=as.numeric(difftime(daily_counts$date,daily_counts$date[1],
                                                                 units="days")))
-df <- daily_counts[,2:3]
+                                                                
+df <- daily_counts[,2:3] # subsetting the columns we need for estimation
 
 # calculate R0 using White and Pagano #
 R0.ML <- est.R0.ML(df$count,t=df$day,begin=1,end=34,GT=fit.si)
 cat("Estimated R0: ",R0.ML$R)
-R0.ML$R
 
 # calculate R0 using sequential bayesian approach: 
 R0.SB <- est.R0.SB(df$count,GT=fit.si)
 cat("Estimated R0: ",R0.SB$R)
-
-flu.R0.results <- as.data.frame(cbind(df[1:18,], c(NA,R0.SB$R)))
-names(flu.R0.results) <- c("dayNum","N","R0.SB")
-tmp <- melt(flu.R0.results,id="dayNum")
-flu.R0.long <- dcast(tmp,dayNum~variable)
-flu.R0.long <- as.data.frame(rbind(as.matrix(flu.R0.long[,1:3]),as.matrix(flu.R0.long[,c(1:2,4)])))
-names(R0.long) <- c("dayNum","N","R0")
-flu.R0.long$Method <- c(rep("SB",15),rep("ML",15))
-
-flu.plot <- ggplot(flu.R0.long,aes(x=dayNum,y=N/2))+
-  geom_bar(stat="identity")+labs(y="Number of cases",x="Day of outbreak",title="(a)")+
-  geom_line(aes(y=R0*8,linetype=Method),size=1)+
-  scale_y_continuous(sec.axis=sec_axis(trans=~./8,name=expression(hat(R)[0])))+
-  geom_hline(yintercept=8,color="gray")
-flu.plot
