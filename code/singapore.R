@@ -1,4 +1,3 @@
-# load libraries 
 library(tidyverse)
 library(lubridate)
 library(incidence)
@@ -14,13 +13,12 @@ library(mvtnorm)
 library(viridis)
 options(digits=3)
 library(ggplot2)
+
 library(EpiEstim)
 library(R0)
 library(reshape2)
 
-# set working directory
 setwd("~/Desktop/IDD/Project_COVID")
-
 # Load the data
 data <- read_csv("~/Desktop/IDD/Project_COVID/singapore_cleaned.csv")
 
@@ -28,7 +26,7 @@ data <- read_csv("~/Desktop/IDD/Project_COVID/singapore_cleaned.csv")
 data$date_confirmation <- as.Date(data$date_confirmation, format = "%Y.%m.%d")
 data$date_onset_symptoms <- as.Date(data$date_onset_symptoms, format = "%Y-%m-%d")
 
-#### first method - final size of epidemic (Lessler 2009) ####
+#### first method ####
 
 # Calculate daily counts
 daily_counts <- data %>%
@@ -45,7 +43,7 @@ for(i in (N-C+1):(N-1)){
 
 R01 <- ((N-1)/C)*total_i
 
-#### second method - exponential growth rate (Lessler 2009) ####
+#### second method ####
 
 # Calculate the exponential growth rate
 growth_rate <- lm(log(count) ~ decimal_date(date), data = daily_counts)$coefficients[2]
@@ -145,6 +143,7 @@ sing.data$serial.interval = as.numeric(sing.data$serial.interval)
 
 fit.si <- generation.time("gamma",sing.data$serial.interval)
 
+
 # Extract mean and coefficient of variation
 mu <- fit.si$mean
 nu <- fit.si$sd/fit.si$mean
@@ -155,19 +154,19 @@ R <- (1 + r*mu*(nu^2))^(1/(nu^2))
 
 cat("Estimated R0: ",R)
 
-#### third method - maximum likelihood branching process estimator (White and Pagano 2021) ####
+##### third method #####
 
-
-# creating a column to specify the number of days that has passed
 daily_counts <- daily_counts %>% mutate(day=as.numeric(difftime(daily_counts$date,daily_counts$date[1],
                                                                 units="days")))
-                                                                
-df <- daily_counts[,2:3] # subsetting the columns we need for estimation
+df <- daily_counts[,2:3]
 
 # calculate R0 using White and Pagano #
 R0.ML <- est.R0.ML(df$count,t=df$day,begin=1,end=34,GT=fit.si)
-cat("Estimated R0: ",R0.ML$R)
+cat("Estimated R0: ", R0.ML$R)
+R0.ML$R
 
 # calculate R0 using sequential bayesian approach: 
 R0.SB <- est.R0.SB(df$count,GT=fit.si)
-cat("Estimated R0: ",R0.SB$R)
+cat("Estimated R0: ",mean(R0.SB$R))
+
+
