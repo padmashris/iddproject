@@ -24,6 +24,8 @@ daily_counts <- data %>%
   count(date_confirmation) %>%
   rename(date = date_confirmation, count = n)
 
+tj_plotinc <- daily_counts
+
 N <- 15000000 # population at risk
 C <- sum(daily_counts$count)
 total_i <- 0
@@ -31,21 +33,18 @@ for(i in (N-C+1):(N-1)){
   total_i <- 1/i + total_i
 }
 
-R01 <- ((N-1)/C)*total_i
+R01.tj <- ((N-1)/C)*total_i
 
-daily_counts2 <- daily_counts[1:26,] 
+#daily_counts2 <- daily_counts[1:26,] 
 
 # Calculate the exponential growth rate
-growth_rate <- lm(log(count) ~ decimal_date(date), data = daily_counts2)$coefficients[2]
+growth_rate <- lm(log(count) ~ decimal_date(date), data = daily_counts)$coefficients[2]
 
 tdata=read.csv("Tianjin135cases_revised.csv",na.strings = "", stringsAsFactors = F)
 tdata$symptom_onset=as.Date(tdata$symptom_onset, format = "%d/%m/%Y")
 tdata$start_source=as.Date(tdata$start_source, format = "%d/%m/%Y")
 tdata$end_source=as.Date(tdata$end_source,format = "%d/%m/%Y" )
 tdata$confirm_date=as.Date(tdata$confirm_date,format = "%d/%m/%Y" )
-str(tdata)
-
-glimpse(tdata)
 
 # remove cases that do NOT have a date of symptom onset to determine the ICC. 
 # There are 10 cases without symptom onset, but all have a confirmation date. 
@@ -95,9 +94,6 @@ tdata <- mutate(tdata, source_group = case_when(!is.na(str_match(Infection_sourc
                                                 is.na(Infection_source_dup) ~ "Unknown", #Priority 5
                                                 T ~ "other")) #there should be none of these, so this is just a sanity check!  
 
-#Remove the duplicated infection source column which is no longer necessary
-tdata <- select(tdata, -Infection_source_dup)
-
 #What is distribution of probably source of infection (grouped)?
 table(tdata$source_group) 
 
@@ -107,7 +103,7 @@ mynodes <- tdata$case_id
 mynodes <- str_to_lower(mynodes) 
 tdata$case_id <- str_to_lower(tdata$case_id)
 
-edges = data.frame(from=mynodes[9],to=mynodes[21],stringsAsFactors = F ) # i read this one manually 
+edges = data.frame(from=mynodes[9],to=mynodes[21],stringsAsFactors = F) # i read this one manually 
 
 for (id in 1:nrow(tdata)) {
   tonode=tdata$case_id[id]
@@ -298,14 +294,8 @@ p
 ### Arrange the dataset by the date of earliest symptom onset for each case pair
 undir_tdates <- arrange(undir_tdates, earliest_sympt_onset)
 
-### Calculate the mean and median for each of the two halves
-all_cp <- undir_tdates %>% 
-  summarize(mean_direct_si = mean(abs_serial_interval),
-            median_direct_si = median(abs_serial_interval),
-            sd_direct_si = sd(abs_serial_interval))
 
-
-fit.ti <- generation.time("gamma",as.numeric(undir_tdates$abs_serial_interval))
+fit.ti <- generation.time("gamma",as.numeric(undir_tdates$raw_serial_interval))
 
 # Extract mean and coefficient of variation
 mu <- fit.ti$mean
@@ -313,10 +303,8 @@ nu <- fit.ti$sd/fit.ti$mean
 
 
 # Calculate reproductive number using exponential growth rate - method
-r <- growth_rate # example value --> fix
-R <- (1 + r*mu*(nu^2))^(1/(nu^2))
-
-cat("Estimated R0: ",R)
+r <- growth_rate 
+R.tj <- (1 + r*mu*(nu^2))^(1/(nu^2)) ## a non value - due to negative exponential growth rate!! 
 
 ##### third method #####
 
@@ -325,13 +313,10 @@ daily_counts <- daily_counts %>% mutate(day=as.numeric(difftime(daily_counts$dat
 df <- daily_counts[,2:3]
 
 # calculate R0 using White and Pagano #
-R0.ML <- est.R0.ML(df$count,t=df$day,begin=1,end=32,GT=fit.si)
-cat("Estimated R0: ", R0.ML$R)
-R0.ML$R
+R0.ML.tj <- est.R0.ML(df$count,t=df$day,begin=1,end=32,GT=fit.si)
 
 # calculate R0 using sequential bayesian approach: 
-R0.SB <- est.R0.SB(df$count,GT=fit.si)
-cat("Estimated R0: ",mean(R0.SB$R))
+R0.SB.tj <- est.R0.SB(df$count,GT=fit.si)
 
 
 

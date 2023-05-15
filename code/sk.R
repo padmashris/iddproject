@@ -28,6 +28,8 @@ daily_counts <- data %>%
   count(date_confirmation) %>%
   rename(date = date_confirmation, count = n)
 
+sk_plotinc <- daily_counts
+
 N <- 51840000 # population at risk - > need to change for SK 
 C <- sum(daily_counts$count)
 total_i <- 0
@@ -35,8 +37,7 @@ for(i in (N-C+1):(N-1)){
   total_i <- 1/i + total_i
 }
 
-R01 <- ((N-1)/C)*total_i
-R01
+R01.sk <- ((N-1)/C)*total_i
 
 # Calculate the exponential growth rate
 growth_rate <- lm(log(count) ~ decimal_date(date), data = daily_counts)$coefficients[2]
@@ -126,20 +127,6 @@ skdata$maxIncTimes = pmax(3, skdata$maxIncTimes)
 skdata$minIncTimes = pmax(1, skdata$minIncTimes)
 skdata$serial_interval <- abs(skdata$date_onset_symptoms - skdata$S2)
 
-# making a data frame with a row for every suspected infector-infectee pair - and including 
-# the serial interval for this pair, and the incubation period of both infector and infectee. 
-#???
-SK.data <- data.frame(infector = skdata$Infector_ID, infectee = skdata$ID, serial.interval = skdata$serial_interval,
-                      inc.infector.min = skdata$minIncTimes[match(skdata$infector_ID,skdata$ID)], inc.infector.max = skdata$maxIncTimes[match(skdata$Infector_ID,skdata$ID)])
-SK.data = sing.data[!is.na(sing.data$serial.interval),] # filter out NAs
-
-
-sing.data$serial.interval = as.numeric(sing.data$serial.interval)
-
-library(fitdistrplus)
-fit2 <- fitdist(skdata$serial_interval,distr="pois")
-# is removing 0s the right way? 
-
 fit.sk <- generation.time("gamma",as.numeric(skdata$serial_interval))
 
 # Extract mean and coefficient of variation
@@ -148,9 +135,7 @@ nu <- fit.sk$sd/fit.sk$mean
 
 # Calculate reproductive number using exponential growth rate - method
 r <- growth_rate # example value
-R <- (1 + r*mu*nu^2)^0.5
-
-cat("Estimated R0: ",R)
+R.sk <- (1 + r*mu*nu^2)^0.5
 
 ##### third method #####
 
@@ -159,9 +144,7 @@ daily_counts <- daily_counts %>% mutate(day=as.numeric(difftime(daily_counts$dat
 df <- daily_counts[,2:3]
 
 # calculate R0 using White and Pagano #
-R0.ML <- est.R0.ML(df$count,t=df$day,begin=1,end=34,GT=fit.sk)
-cat("Estimated R0: ", R0.ML$R)
+R0.ML.sk <- est.R0.ML(df$count,t=df$day,begin=1,end=34,GT=fit.sk)
 
 # calculate R0 using sequential bayesian approach: 
-R0.SB <- est.R0.SB(df$count,GT=fit.sk)
-cat("Estimated R0: ",mean(R0.SB$R))
+R0.SB.sk <- est.R0.SB(df$count,GT=fit.sk)
