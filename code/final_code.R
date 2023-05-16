@@ -216,6 +216,7 @@ R0.ML.sg <- R0::est.R0.ML(df$count,t=df$day,begin=1,end=34,GT=fit.si)
 R0.ML.sg
 
 # calculate R0 using sequential bayesian approach: 
+## we assume the inital R to be following a unfiorm distribution
 R0.SB.sg <- est.R0.SB(df$count,GT=fit.si)
 mean(R0.SB.sg$R)
 
